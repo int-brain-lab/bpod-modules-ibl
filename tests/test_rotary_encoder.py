@@ -65,7 +65,7 @@ class TestRotaryEncoder:
         encoder_open.assert_called_once()
 
     def test_context_manager(self, mock_encoder, mocker):
-        encoder_close = mocker.spy(RotaryEncoderModule, 'close')
+        encoder_close = mocker.spy(mock_encoder, 'close')
         with mock_encoder('fake_port'):
             encoder_close.assert_not_called()
         encoder_close.assert_called_once()

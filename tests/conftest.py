@@ -1,8 +1,6 @@
 import re
-from unittest.mock import PropertyMock
 
 import pytest
-import serial
 from bpod_core.com import ExtendedSerial
 from serial import Serial
 
@@ -33,22 +31,28 @@ def mock_ext_serial(mocker):
         del extended_serial.response_buffer[:size]
         return response
 
-    def in_waiting() -> int:
-        return len(extended_serial.response_buffer)
-
     def open_port(self) -> None:
         self.is_open = True
 
     def close_port(self) -> None:
         self.is_open = False
 
-    mocker.patch.object(serial.Serial, '__enter__', return_value=extended_serial)
-    mocker.patch.object(serial.Serial, 'write', side_effect=write)
-    mocker.patch.object(serial.Serial, 'read', side_effect=read)
-    mocker.patch.object(serial.Serial, 'open', new=open_port)
-    mocker.patch.object(serial.Serial, 'close', new=close_port)
-    mocker.patch.object(serial.Serial, 'reset_input_buffer')
-    mocker.patch.object(
-        serial.Serial, 'in_waiting', new_callable=PropertyMock, side_effect=in_waiting
+    def reset_input_buffer() -> None:
+        extended_serial.response_buffer.clear()
+
+    base = ExtendedSerial.__bases__[0]
+    mocker.patch.object(base, '__enter__', return_value=extended_serial)
+    mocker.patch.object(base, 'write', side_effect=write)
+    mocker.patch.object(base, 'read', side_effect=read)
+    mocker.patch.object(base, 'open', new=open_port)
+    mocker.patch.object(base, 'close', new=close_port)
+    mocker.patch.object(base, 'reset_input_buffer', side_effect=reset_input_buffer)
+
+    type(extended_serial).in_waiting = property(
+        lambda self: len(extended_serial.response_buffer)
     )
+    # type(extended_serial).close = close_port
+
+    mocker.patch('bpod_core.com.ExtendedSerial', return_value=extended_serial)
+
     return extended_serial
