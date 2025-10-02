@@ -51,7 +51,7 @@ def mock_ext_serial(mocker):
     type(extended_serial).in_waiting = property(
         lambda self: len(extended_serial.response_buffer)
     )
-    # type(extended_serial).close = close_port
+    type(extended_serial).fd = None
 
     mocker.patch('bpod_core.com.ExtendedSerial', return_value=extended_serial)
 
