@@ -103,7 +103,7 @@ class TestRotaryEncoder:
         assert re._factor_deg_to_tic == re.resolution * re.clock_multiplier / 360
         assert re._factor_tic_to_deg == 1 / re._factor_deg_to_tic
 
-    def test_position(self, mock_encoder, mock_ext_serial, mocker):
+    def test_position(self, mock_encoder, mock_ext_serial):
         enc = mock_encoder('fake_port', encoder_resolution=1024)
         mock_ext_serial.mock_responses = {b'Q': struct.pack('<h', 256)}
         assert enc._tics == 256
