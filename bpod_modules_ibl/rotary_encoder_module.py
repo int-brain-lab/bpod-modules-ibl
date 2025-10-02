@@ -15,10 +15,10 @@ DTYPE_LOGGING = np.dtype([('time', 'timedelta64[us]'), ('degrees', 'f8')])
 class RotaryEncoderModule:
     _name: str = 'Rotary Encoder Module'
     _is_sd_logging: bool = False
-    _encoder_resolution: int = 1024
+    _resolution: int = 1024
     _clock_multiplier: int
-    _factor_tick_to_deg: float
-    _factor_deg_to_tick: float
+    _factor_tic_to_deg: float
+    _factor_deg_to_tic: float
     _wrap_mode: Literal['bipolar', 'unipolar'] = 'bipolar'
     _wrap_point_tics: int
     _thresholds: list[float] = []
@@ -56,7 +56,7 @@ class RotaryEncoderModule:
         self._clock_multiplier = 1 if self._hardware_version == 1 else 4
 
         # set encoder resolution
-        self.encoder_resolution = encoder_resolution
+        self.resolution = encoder_resolution
 
         # initialize serial object and set port
         # implemented that awkwardly to get logging from self.open()
@@ -148,11 +148,11 @@ class RotaryEncoderModule:
 
     def _degrees_to_tics(self, degrees: float) -> int:
         """Convert degrees to tics."""
-        return round(degrees * self._factor_deg_to_tick)
+        return round(degrees * self._factor_deg_to_tic)
 
     def _tics_to_degrees(self, tics: int) -> float:
         """Convert tics to degrees."""
-        return tics * self._factor_tick_to_deg
+        return tics * self._factor_tic_to_deg
 
     @property
     def _tics(self) -> int:
@@ -160,8 +160,7 @@ class RotaryEncoderModule:
 
     @_tics.setter
     def _tics(self, value: int) -> None:
-        self._serial.write_struct('<ch', b'P', value)
-        if not self._serial.verify(b''):
+        if not self._serial.verify(struct.pack('<ch', b'P', value)):
             raise RuntimeError(f'Failed to set position to {value} tics')
 
     def _reset_data_streams(self):
@@ -190,21 +189,17 @@ class RotaryEncoderModule:
         return self._clock_multiplier
 
     @property
-    def encoder_resolution(self) -> int:
-        """Resolution of the Incremental Encoder in pulses per revolution."""
-        return self._encoder_resolution
+    def resolution(self) -> int:
+        """Resolution of the rotary encoder in pulses per revolution."""
+        return self._resolution
 
-    @encoder_resolution.setter
-    def encoder_resolution(self, value: int) -> None:
+    @resolution.setter
+    def resolution(self, value: int) -> None:
         if value <= 0:
             raise ValueError('Encoder resolution must be a positive integer.')
-        self._encoder_resolution = int(value)
-        self._factor_tick_to_deg = 360.0 / (
-            self._encoder_resolution * self._clock_multiplier
-        )
-        self._factor_deg_to_tick = (
-            self._encoder_resolution * self._clock_multiplier
-        ) / 360.0
+        self._resolution = int(value)
+        self._factor_deg_to_tic = self._resolution * self._clock_multiplier / 360.0
+        self._factor_tic_to_deg = 1 / self._factor_deg_to_tic
 
     @property
     def port(self) -> str | None:
@@ -245,7 +240,8 @@ class RotaryEncoderModule:
         query = struct.pack('<cI', b'W', tics)
         if self._serial.verify(query):
             self._wrap_point_tics = tics
-            log.debug('Setting wrap point to %0.1f°', self.wrap_point)
+            if log.isEnabledFor(logging.DEBUG):
+                log.debug('Setting wrap point to %0.1f°', self.wrap_point)
         else:
             raise RuntimeError('Failed to set wrap point')
 
@@ -307,7 +303,8 @@ class RotaryEncoderModule:
     def degrees(self, degrees: float):
         try:
             self._tics = self._degrees_to_tics(degrees)
-            log.debug('Setting encoder position to %0.1f°', self.degrees)
+            if log.isEnabledFor(logging.DEBUG):
+                log.debug('Setting encoder position to %0.1f°', self.degrees)
         except RuntimeError as e:
             raise RuntimeError(
                 f'Failed to set encoder position to {degrees:0.1f}'
@@ -375,7 +372,7 @@ class RotaryEncoderModule:
         dtype = np.dtype([('tics', np.int32), ('time', np.uint32)])
         raw_data = np.frombuffer(buffer, dtype=dtype)
         out['time'] = raw_data['time'].astype('timedelta64[us]')
-        np.multiply(raw_data['tics'], self._factor_tick_to_deg, out=out['degrees'])
+        np.multiply(raw_data['tics'], self._factor_tic_to_deg, out=out['degrees'])
 
         # Correct rollover in 32-bit microsecond timer
         rollover_indices = np.where(np.diff(raw_data['time']) < 0)[0] + 1

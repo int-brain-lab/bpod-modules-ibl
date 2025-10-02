@@ -1,4 +1,5 @@
 import logging
+import struct
 
 import pytest
 from serial import Serial, SerialException
@@ -57,10 +58,11 @@ class TestRotaryEncoder:
 
     def test_init(self, mock_probe, mock_reset, mock_ext_serial, mocker):
         encoder_open = mocker.spy(RotaryEncoderModule, 'open')
-        encoder = RotaryEncoderModule('fake_port')
-        assert encoder.hardware_version == mock_probe()
-        assert encoder.clock_multiplier == {1: 1, 2: 4}[mock_probe()]
-        assert encoder.port == 'fake_port'
+        re = RotaryEncoderModule('fake_port', encoder_resolution=256)
+        assert re.hardware_version == mock_probe()
+        assert re.clock_multiplier == 1 if mock_probe() == 1 else 4
+        assert re.resolution == 256
+        assert re.port == 'fake_port'
         mock_reset.assert_called_once()
         encoder_open.assert_called_once()
 
@@ -89,3 +91,26 @@ class TestRotaryEncoder:
             assert serial_open.call_count == 1
         assert 'Opening serial connection' in caplog.text
         assert len(caplog.records) == 1
+
+    def test_resolution(self, mock_encoder):
+        assert mock_encoder('fake_port').resolution == 1024
+        re = mock_encoder('fake_port', encoder_resolution=256)
+        assert re.resolution == 256
+        re.resolution = 1024
+        assert re.resolution == 1024
+        with pytest.raises(ValueError):
+            re.resolution = -124
+        assert re._factor_deg_to_tic == re.resolution * re.clock_multiplier / 360
+        assert re._factor_tic_to_deg == 1 / re._factor_deg_to_tic
+
+    def test_position(self, mock_encoder, mock_ext_serial, mocker):
+        enc = mock_encoder('fake_port', encoder_resolution=1024)
+        mock_ext_serial.mock_responses = {b'Q': struct.pack('<h', 256)}
+        assert enc._tics == 256
+        assert enc.degrees == 256 * enc._factor_tic_to_deg
+        mock_ext_serial.mock_responses = {struct.pack('<ch', b'P', 128): b'\x01'}
+        enc.degrees = 128 * enc._factor_tic_to_deg
+        assert mock_ext_serial.last_write == struct.pack('<ch', b'P', 128)
+        mock_ext_serial.mock_responses = {struct.pack('<ch', b'P', 128): b'\x00'}
+        with pytest.raises(RuntimeError):
+            enc.degrees = 128 * enc._factor_tic_to_deg
