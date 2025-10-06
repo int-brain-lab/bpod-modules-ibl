@@ -148,7 +148,7 @@ class RotaryEncoderModule:
 
     def _degrees_to_tics(self, degrees: float) -> int:
         """Convert degrees to tics."""
-        return round(degrees * self._factor_deg_to_tic)
+        return int(round(degrees * self._factor_deg_to_tic))
 
     def _tics_to_degrees(self, tics: int) -> float:
         """Convert tics to degrees."""
@@ -236,8 +236,8 @@ class RotaryEncoderModule:
 
     @wrap_point.setter
     def wrap_point(self, degrees: float) -> None:
-        tics = self._degrees_to_tics(abs(degrees))
-        query = struct.pack('<cI', b'W', tics)
+        tics = self._degrees_to_tics(degrees)
+        query = struct.pack('<ch', b'W', tics)
         if self._serial.verify(query):
             self._wrap_point_tics = tics
             if log.isEnabledFor(logging.DEBUG):
@@ -302,9 +302,11 @@ class RotaryEncoderModule:
     @degrees.setter
     def degrees(self, degrees: float):
         try:
-            self._tics = self._degrees_to_tics(degrees)
+            tics = self._degrees_to_tics(degrees)
+            self._tics = tics
             if log.isEnabledFor(logging.DEBUG):
-                log.debug('Setting encoder position to %0.1f°', self.degrees)
+                degrees = self._tics_to_degrees(tics)
+                log.debug('Setting encoder position to %0.1f°', degrees)
         except RuntimeError as e:
             raise RuntimeError(
                 f'Failed to set encoder position to {degrees:0.1f}'
@@ -407,7 +409,7 @@ class RotaryEncoderModule:
         # Raise exception if not version 1
         if self.hardware_version != 1:
             raise RuntimeError(
-                'Setting of stream prefix is only supported for %s v1', self._name
+                f'Setting of stream prefix is only supported for {self._name} v1'
             )
 
         # validate prefix and convert to bytes if necessary
@@ -438,7 +440,7 @@ class RotaryEncoderModule:
                 'Invalid wrap mode. Must be either "bipolar" or "unipolar".'
             )
         self._serial.write_struct('<cB', b'M', 0 if mode == 'bipolar' else 1)
-        if self._serial.verify(b''):
+        if self._serial.read() == b'\x01':
             log.debug('Setting wrap mode to %s', mode)
         else:
             raise RuntimeError(f'Failed to set wrap mode to {mode}')
