@@ -140,3 +140,28 @@ class TestRotaryEncoder:
             enc.zero()
         assert mock_ext_serial.last_write == b'Z'
         assert any('Resetting encoder position' in r.message for r in caplog.records)
+
+    def test_reset_data_streams(self, mock_encoder, mock_ext_serial, caplog):
+        enc = mock_encoder('fake_port', encoder_resolution=1024)
+        enc._is_sd_logging = True
+        mock_ext_serial.mock_responses = {b'X': b''}
+        with caplog.at_level(logging.DEBUG):
+            enc._reset_data_streams()
+        assert mock_ext_serial.last_write == b'X'
+        assert enc._is_sd_logging is False
+        assert any('All data streams reset' in r.message for r in caplog.records)
+
+    @pytest.mark.parametrize('hw_version', [1, 2], ids=lambda v: f'Rotary Encoder v{v}')
+    def test_reset(self, hw_version, mocker):
+        enc = RotaryEncoderModule.__new__(RotaryEncoderModule)
+        enc._hardware_version = hw_version
+        enc._degrees_to_tics = lambda x: int(x)
+        enc._tics_to_degrees = lambda x: float(x)
+        enc._serial = mocker.MagicMock()
+
+        # enc.reset()
+        #
+        # assert enc.wrap_point == 180.0
+        # assert enc.thresholds == [-40.0, 40.0]
+        # assert enc.wrap_mode == "bipolar"
+        # assert not enc.event_transmission
