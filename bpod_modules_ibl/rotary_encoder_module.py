@@ -176,7 +176,7 @@ class RotaryEncoderModule:
         self.event_transmission = False
         # obj.moduleOutputStream = 'off';
         if self._hardware_version == 1:
-            self.set_stream_prefix('M')
+            self.set_stream_prefix(b'M')
 
     @property
     def hardware_version(self) -> int:

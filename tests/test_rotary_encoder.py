@@ -159,9 +159,24 @@ class TestRotaryEncoder:
         enc._tics_to_degrees = lambda x: float(x)
         enc._serial = mocker.MagicMock()
 
-        # enc.reset()
-        #
-        # assert enc.wrap_point == 180.0
-        # assert enc.thresholds == [-40.0, 40.0]
-        # assert enc.wrap_mode == "bipolar"
-        # assert not enc.event_transmission
+        wrap_point = mocker.patch.object(
+            type(enc), 'wrap_point', new_callable=mocker.PropertyMock
+        )
+        thresholds = mocker.patch.object(
+            type(enc), 'thresholds', new_callable=mocker.PropertyMock
+        )
+        wrap_mode = mocker.patch.object(
+            type(enc), 'wrap_mode', new_callable=mocker.PropertyMock
+        )
+        event_transmission = mocker.patch.object(
+            type(enc), 'event_transmission', new_callable=mocker.PropertyMock
+        )
+        set_prefix = mocker.patch.object(enc, 'set_stream_prefix')
+
+        enc.reset()
+        wrap_point.assert_called_once_with(180.0)
+        thresholds.assert_called_once_with([-40.0, 40.0])
+        wrap_mode.assert_called_once_with('bipolar')
+        event_transmission.assert_called_once_with(False)
+        if hw_version == 1:
+            set_prefix.assert_called_once_with(b'M')
