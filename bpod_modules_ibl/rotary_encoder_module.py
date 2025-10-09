@@ -236,7 +236,7 @@ class RotaryEncoderModule:
 
     @wrap_point.setter
     def wrap_point(self, degrees: float) -> None:
-        tics = self._degrees_to_tics(degrees)
+        tics = self._degrees_to_tics(abs(degrees))
         query = struct.pack('<ch', b'W', tics)
         if self._serial.verify(query):
             self._wrap_point_tics = tics
