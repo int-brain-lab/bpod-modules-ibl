@@ -68,8 +68,9 @@ class TestRotaryEncoder:
         encoder_open.assert_called_once()
 
     def test_context_manager(self, mock_encoder, mocker):
-        encoder_close = mocker.spy(mock_encoder, 'close')
-        with mock_encoder('fake_port'):
+        encoder_instance = mock_encoder('fake_port')
+        encoder_close = mocker.spy(encoder_instance, 'close')
+        with encoder_instance:
             encoder_close.assert_not_called()
         encoder_close.assert_called_once()
 
@@ -184,15 +185,29 @@ class TestRotaryEncoder:
     def test_thresholds(self, mock_encoder, mock_ext_serial, caplog):
         enc = mock_encoder('fake_port', encoder_resolution=1024)
         enc._wrap_point_tics = enc._degrees_to_tics(180)
-        # enc.thresholds = [-40.0, 40.0]
-
-        # assert enc.wrap_point == -180
-        # mock_ext_serial.mock_responses = {b'W' + ctypes.c_int16(-128): b'\x01'}
-        # with caplog.at_level(logging.DEBUG):
-        #     enc.wrap_point = -128 * enc._factor_tic_to_deg
-        # assert mock_ext_serial.last_write == b'W' + ctypes.c_int16(-128)
-        # assert len(caplog.records) == 1
-        # assert any('Setting wrap point' in r.message for r in caplog.records)
-        # mock_ext_serial.mock_responses = {struct.pack('<ch', b'W', -128): b'\x00'}
-        # with pytest.raises(RuntimeError):
-        #     enc.wrap_point = -128 * enc._factor_tic_to_deg
+        enc._thresholds = [-40.0, 40.0]
+        assert enc._max_thresholds == 8
+        assert enc.thresholds == [-40.0, 40.0]
+        with pytest.raises(ValueError, match='cannot exceed .* wrap point'):
+            enc.thresholds = [-181.0, 40]
+        with pytest.raises(ValueError, match=r'maximum of \d thresholds can be set'):
+            enc.thresholds = [x for x in range(enc._max_thresholds + 1)]
+        thresholds_deg = [round(((x / 3.5) - 1) * 180) for x in range(8)]
+        thresholds_tix = [enc._degrees_to_tics(x) for x in thresholds_deg]
+        thresholds_array = (ctypes.c_int16 * 8)(*thresholds_tix)
+        thresholds_bytes = ctypes.string_at(thresholds_array, 8)
+        mock_ext_serial.mock_responses = {
+            rb'T' + ctypes.c_uint8(8) + thresholds_bytes: b'\x01'
+        }
+        with caplog.at_level(logging.DEBUG):
+            enc.thresholds = thresholds_deg
+        assert len(caplog.records) == 1
+        assert any('Setting thresholds to' in r.message for r in caplog.records)
+        assert enc.thresholds == [enc._tics_to_degrees(x) for x in thresholds_tix]
+        mock_ext_serial.mock_responses = {
+            rb'T'
+            + ctypes.c_uint8(1)
+            + ctypes.c_int16(enc._degrees_to_tics(42)): b'\x00'
+        }
+        with pytest.raises(RuntimeError, match='Failed to set thresholds'):
+            enc.thresholds = [42]
