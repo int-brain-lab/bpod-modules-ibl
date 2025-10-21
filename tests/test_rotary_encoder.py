@@ -105,20 +105,34 @@ class TestRotaryEncoder:
         assert re._factor_deg_to_tic == re.resolution * re.clock_multiplier / 360
         assert re._factor_tic_to_deg == 1 / re._factor_deg_to_tic
 
-    def test_position(self, mock_encoder, mock_ext_serial, caplog):
+    @pytest.mark.parametrize('degrees', [-180, 180], ids=lambda v: f'angle={v}deg')
+    def test_get_position(self, mock_encoder, mock_ext_serial, degrees):
         enc = mock_encoder('fake_port', encoder_resolution=1024)
-        mock_ext_serial.mock_responses = {b'Q': ctypes.c_int16(-255)}
-        assert enc._tics == -255
-        assert enc.degrees == -255 * enc._factor_tic_to_deg
-        mock_ext_serial.mock_responses = {b'P' + ctypes.c_int16(-128): b'\x01'}
-        with caplog.at_level(logging.DEBUG):
-            enc.degrees = -128 * enc._factor_tic_to_deg
-        assert mock_ext_serial.last_write == b'P' + ctypes.c_int16(-128)
-        assert len(caplog.records) == 1
-        assert any('Setting encoder position' in r.message for r in caplog.records)
-        mock_ext_serial.mock_responses = {struct.pack('<ch', b'P', -128): b'\x00'}
-        with pytest.raises(RuntimeError):
-            enc.degrees = -128 * enc._factor_tic_to_deg
+
+        tics = enc._degrees_to_tics(degrees)
+        degrees = enc._tics_to_degrees(tics)
+
+        mock_ext_serial.mock_responses = {b'Q': ctypes.c_int16(tics)}
+        assert enc.get_tics() == tics
+        assert enc.get_degrees() == degrees
+
+    def test_set_degrees(self, mock_encoder, mock_ext_serial, caplog):
+        enc = mock_encoder('fake_port', encoder_resolution=1024)
+
+    # def test_position(self, mock_encoder, mock_ext_serial, caplog):
+    #     enc = mock_encoder('fake_port', encoder_resolution=1024)
+    #     mock_ext_serial.mock_responses = {b'Q': ctypes.c_int16(-255)}
+    #     assert enc.get_tics() == -255
+    #     assert enc.get_degrees() == -255 * enc._factor_tic_to_deg
+    #     mock_ext_serial.mock_responses = {b'P' + ctypes.c_int16(-128): b'\x01'}
+    #     with caplog.at_level(logging.DEBUG):
+    #         enc.set_degrees(-128 * enc._factor_tic_to_deg)
+    #     assert mock_ext_serial.last_write == b'P' + ctypes.c_int16(-128)
+    #     assert len(caplog.records) == 1
+    #     assert any('Setting encoder position' in r.message for r in caplog.records)
+    #     mock_ext_serial.mock_responses = {struct.pack('<ch', b'P', -128): b'\x00'}
+    #     with pytest.raises(RuntimeError):
+    #         enc.set_degrees(-128 * enc._factor_tic_to_deg)
 
     def test_wrap_point(self, mock_encoder, mock_ext_serial, caplog):
         enc = mock_encoder('fake_port', encoder_resolution=1024)

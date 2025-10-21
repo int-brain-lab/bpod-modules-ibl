@@ -154,19 +154,36 @@ class RotaryEncoderModule:
         """Convert tics to degrees."""
         return tics * self._factor_tic_to_deg
 
-    @property
-    def _tics(self) -> int:
-        return cast('int', self._serial.query_struct(b'Q', '<h')[0])
-
-    @_tics.setter
-    def _tics(self, value: int) -> None:
-        if not self._serial.verify(struct.pack('<ch', b'P', value)):
-            raise RuntimeError(f'Failed to set position to {value} tics')
-
     def _reset_data_streams(self):
         self._serial.write(b'X')
         self._is_sd_logging = False
         log.debug('All data streams reset')
+
+    def get_tics(self) -> int:
+        """Get current encoder position in tics."""
+        return cast('int', self._serial.query_struct(b'Q', '<h')[0])
+
+    def set_tics(self, tics: int):
+        """Set current encoder position in tics."""
+        if not self._serial.verify(struct.pack('<ch', b'P', tics)):
+            raise RuntimeError(f'Failed to set position to {tics} tics')
+
+    def get_degrees(self) -> float:
+        """Get current encoder position in degrees."""
+        return self._tics_to_degrees(self.get_tics())
+
+    def set_degrees(self, degrees: float):
+        """Set current encoder position in degrees."""
+        try:
+            tics = self._degrees_to_tics(degrees)
+            self.set_tics(tics)
+            if log.isEnabledFor(logging.DEBUG):
+                degrees = self._tics_to_degrees(tics)
+                log.debug('Setting encoder position to %0.1f°', degrees)
+        except RuntimeError as e:
+            raise RuntimeError(
+                f'Failed to set encoder position to {degrees:0.1f}'
+            ) from e
 
     def reset(self):
         """Reset Rotary Encoder Module to default settings."""
@@ -293,24 +310,6 @@ class RotaryEncoderModule:
             self._serial.write(b'F')
             log.debug('Logging disabled')
         self._is_sd_logging = bool(enable_logging)
-
-    @property
-    def degrees(self) -> float:
-        """Current encoder position in degrees."""
-        return self._tics_to_degrees(self._tics)
-
-    @degrees.setter
-    def degrees(self, degrees: float):
-        try:
-            tics = self._degrees_to_tics(degrees)
-            self._tics = tics
-            if log.isEnabledFor(logging.DEBUG):
-                degrees = self._tics_to_degrees(tics)
-                log.debug('Setting encoder position to %0.1f°', degrees)
-        except RuntimeError as e:
-            raise RuntimeError(
-                f'Failed to set encoder position to {degrees:0.1f}'
-            ) from e
 
     def zero(self) -> None:
         """Reset current encoder position to zero."""
