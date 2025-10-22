@@ -569,8 +569,25 @@ class RotaryEncoderModule:
             else:
                 raise ValueError('Sequence must contain integers in range 0 to 7.')
         else:
-            raise ValueError("Unsupported input type for 'value'.")
+            raise ValueError('Unsupported input type.')
+
         self._serial.write_struct('<cB', b';', byte_value)
+
+        if log.isEnabledFor(logging.DEBUG):
+            if byte_value == 0xFF:
+                log.debug('Enabled all 8 thresholds')
+            elif byte_value == 0x00:
+                log.debug('Disabled all 8 thresholds')
+            else:
+                enabled = [str(x) for x in range(8) if (byte_value & (1 << x)) != 0]
+                disabled = [str(x) for x in range(8) if (byte_value & (1 << x)) == 0]
+                log.debug(
+                    'Enabled threshold%s %s; disabled threshold%s %s',
+                    's' if len(enabled) > 1 else '',
+                    ', '.join(enabled),
+                    's' if len(disabled) > 1 else '',
+                    ', '.join(disabled),
+                )
 
     def enable_evt_transmission(self):
         pass
