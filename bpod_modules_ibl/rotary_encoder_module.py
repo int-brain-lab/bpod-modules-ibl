@@ -1,5 +1,6 @@
 import logging
 import struct
+from collections.abc import Sequence
 from typing import Literal, cast, overload
 
 import numpy as np
@@ -355,14 +356,14 @@ class RotaryEncoderModule:
         else:
             raise RuntimeError('Failed to set wrap point')
 
-    def set_thresholds(self, degrees: list[float]) -> None:
+    def set_thresholds(self, degrees: Sequence[float]) -> None:
         """
         Set the thresholds in degrees.
 
         Parameters
         ----------
-        degrees : list of float
-            Thresholds in degrees. The list must not contain more than 8 values.
+        degrees : Sequence of float
+            Thresholds in degrees. The sequence must not contain more than 8 values.
 
         Raises
         ------
@@ -532,8 +533,45 @@ class RotaryEncoderModule:
                 f'Failed to {"en" if value else "dis"}able event transmission'
             )
 
-    def enable_thresholds(self, enabled_thresholds):
-        pass
+    def enable_thresholds(self, value: bool | str | Sequence[int]):
+        """
+        Enable or disable thresholds based on the provided value.
+
+        Parameters
+        ----------
+        value : bool or str or Sequence of int
+            - If `bool`: enables all 8 thresholds if True, or disables them if False.
+            - If `str`: must be a binary string of exactly 8 characters
+              (e.g., '11010100'). Each character represents whether the corresponding
+              threshold (bit 0 to 7) should be enabled (1) or disabled (0).
+            - If `Sequence[int]`: a sequence of integers (ranging from 0 to 7)
+              specifying which thresholds to enable. All other thresholds will be
+              disabled.
+
+        Raises
+        ------
+        ValueError
+            If `value` is not a bool, a valid binary string, or a valid sequence of
+            integers.
+        """
+        byte_value = 0
+        if isinstance(value, bool):
+            byte_value = 0xFF if value else 0x00
+        elif isinstance(value, str):
+            if len(value) == 8 and all(c in '01' for c in value):
+                byte_value = int(value, 2)
+            else:
+                raise ValueError("String must be 8 characters of '0' or '1'.")
+        elif isinstance(value, Sequence) and not isinstance(value, str):
+            if all(isinstance(x, int) and 0 <= x < 8 for x in value):
+                byte_value = 0
+                for bit in value:
+                    byte_value |= 1 << bit
+            else:
+                raise ValueError('Sequence must contain integers in range 0 to 7.')
+        else:
+            raise ValueError("Unsupported input type for 'value'.")
+        self._serial.write_struct('<cB', b';', byte_value)
 
     def enable_evt_transmission(self):
         pass
