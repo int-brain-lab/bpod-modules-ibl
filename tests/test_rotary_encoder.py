@@ -98,15 +98,15 @@ class TestRotaryEncoder:
         assert mock_encoder('fake_port').resolution == 1024
         re = mock_encoder('fake_port', encoder_resolution=256)
         assert re.resolution == 256
-        re.resolution = 1024
+        re.set_resolution(1024)
         assert re.resolution == 1024
         with pytest.raises(ValueError):
-            re.resolution = -124
+            re.set_resolution(-124)
         assert re._factor_deg_to_tic == re.resolution * re.clock_multiplier / 360
         assert re._factor_tic_to_deg == 1 / re._factor_deg_to_tic
 
-    @pytest.mark.parametrize('degrees', [-180, 180], ids=lambda v: f'angle={v}deg')
-    def test_get_position(self, mock_encoder, mock_ext_serial, degrees):
+    @pytest.mark.parametrize('degrees', [-135, 135], ids=lambda v: f'degrees={v}')
+    def test_get_degrees(self, mock_encoder, mock_ext_serial, degrees):
         enc = mock_encoder('fake_port', encoder_resolution=1024)
 
         tics = enc._degrees_to_tics(degrees)
@@ -116,23 +116,24 @@ class TestRotaryEncoder:
         assert enc.get_tics() == tics
         assert enc.get_degrees() == degrees
 
-    def test_set_degrees(self, mock_encoder, mock_ext_serial, caplog):
+    @pytest.mark.parametrize('degrees', [-135, 135], ids=lambda v: f'degrees={v}')
+    def test_set_degrees(self, mock_encoder, mock_ext_serial, caplog, degrees):
         enc = mock_encoder('fake_port', encoder_resolution=1024)
 
-    # def test_position(self, mock_encoder, mock_ext_serial, caplog):
-    #     enc = mock_encoder('fake_port', encoder_resolution=1024)
-    #     mock_ext_serial.mock_responses = {b'Q': ctypes.c_int16(-255)}
-    #     assert enc.get_tics() == -255
-    #     assert enc.get_degrees() == -255 * enc._factor_tic_to_deg
-    #     mock_ext_serial.mock_responses = {b'P' + ctypes.c_int16(-128): b'\x01'}
-    #     with caplog.at_level(logging.DEBUG):
-    #         enc.set_degrees(-128 * enc._factor_tic_to_deg)
-    #     assert mock_ext_serial.last_write == b'P' + ctypes.c_int16(-128)
-    #     assert len(caplog.records) == 1
-    #     assert any('Setting encoder position' in r.message for r in caplog.records)
-    #     mock_ext_serial.mock_responses = {struct.pack('<ch', b'P', -128): b'\x00'}
-    #     with pytest.raises(RuntimeError):
-    #         enc.set_degrees(-128 * enc._factor_tic_to_deg)
+        tics1 = enc._degrees_to_tics(degrees)
+        degrees1 = enc._tics_to_degrees(tics1)
+        mock_ext_serial.mock_responses = {b'P' + ctypes.c_int16(tics1): b'\x01'}
+        with caplog.at_level(logging.DEBUG):
+            enc.set_degrees(degrees1)
+
+        mock_ext_serial.mock_responses = {b'P' + ctypes.c_int16(tics1): b'\x00'}
+        with pytest.raises(RuntimeError):
+            enc.set_degrees(degrees1)
+
+        tics2 = enc._degrees_to_tics(degrees * 100)
+        degrees2 = enc._tics_to_degrees(tics2)
+        with pytest.raises(ValueError):
+            enc.set_degrees(degrees2)
 
     def test_wrap_point(self, mock_encoder, mock_ext_serial, caplog):
         enc = mock_encoder('fake_port', encoder_resolution=1024)
@@ -140,13 +141,13 @@ class TestRotaryEncoder:
         assert enc.wrap_point == 180
         mock_ext_serial.mock_responses = {b'W' + ctypes.c_int16(128): b'\x01'}
         with caplog.at_level(logging.DEBUG):
-            enc.wrap_point = -128 * enc._factor_tic_to_deg
+            enc.set_wrap_point(-128 * enc._factor_tic_to_deg)
         assert mock_ext_serial.last_write == b'W' + ctypes.c_int16(128)
         assert len(caplog.records) == 1
         assert any('Setting wrap point' in r.message for r in caplog.records)
         mock_ext_serial.mock_responses = {struct.pack('<ch', b'W', 128): b'\x00'}
         with pytest.raises(RuntimeError):
-            enc.wrap_point = 128 * enc._factor_tic_to_deg
+            enc.set_wrap_point(128 * enc._factor_tic_to_deg)
 
     def test_zero(self, mock_encoder, mock_ext_serial, caplog):
         enc = mock_encoder('fake_port', encoder_resolution=1024)
@@ -174,27 +175,21 @@ class TestRotaryEncoder:
         enc._tics_to_degrees = lambda x: float(x)
         enc._serial = mocker.MagicMock()
 
-        wrap_point = mocker.patch.object(
-            type(enc), 'wrap_point', new_callable=mocker.PropertyMock
-        )
-        thresholds = mocker.patch.object(
-            type(enc), 'thresholds', new_callable=mocker.PropertyMock
-        )
-        wrap_mode = mocker.patch.object(
-            type(enc), 'wrap_mode', new_callable=mocker.PropertyMock
-        )
-        event_transmission = mocker.patch.object(
-            type(enc), 'event_transmission', new_callable=mocker.PropertyMock
-        )
-        set_prefix = mocker.patch.object(enc, 'set_stream_prefix')
+        for name in [
+            'set_event_transmission',
+            'set_thresholds',
+            'set_wrap_mode',
+            'set_wrap_point',
+            'set_stream_prefix',
+        ]:
+            mocker.patch.object(enc, name)
 
         enc.reset()
-        wrap_point.assert_called_once_with(180.0)
-        thresholds.assert_called_once_with([-40.0, 40.0])
-        wrap_mode.assert_called_once_with('bipolar')
-        event_transmission.assert_called_once_with(False)
-        if hw_version == 1:
-            set_prefix.assert_called_once_with(b'M')
+        enc.set_wrap_point.assert_called_once_with(180.0)
+        enc.set_thresholds.assert_called_once_with([-40.0, 40.0])
+        enc.set_wrap_mode.assert_called_once_with('bipolar')
+        enc.set_event_transmission.assert_called_once_with(False)
+        enc.set_stream_prefix.assert_not_called() if hw_version != 1 else None
 
     def test_thresholds(self, mock_encoder, mock_ext_serial, caplog):
         enc = mock_encoder('fake_port', encoder_resolution=1024)
@@ -203,9 +198,9 @@ class TestRotaryEncoder:
         assert enc._max_thresholds == 8
         assert enc.thresholds == [-40.0, 40.0]
         with pytest.raises(ValueError, match='cannot exceed .* wrap point'):
-            enc.thresholds = [-181.0, 40]
+            enc.set_thresholds([-181.0, 40])
         with pytest.raises(ValueError, match=r'maximum of \d thresholds can be set'):
-            enc.thresholds = [x for x in range(enc._max_thresholds + 1)]
+            enc.set_thresholds([x for x in range(enc._max_thresholds + 1)])
         thresholds_deg = [round(((x / 3.5) - 1) * 180) for x in range(8)]
         thresholds_tix = [enc._degrees_to_tics(x) for x in thresholds_deg]
         thresholds_array = (ctypes.c_int16 * 8)(*thresholds_tix)
@@ -214,7 +209,7 @@ class TestRotaryEncoder:
             rb'T' + ctypes.c_uint8(8) + thresholds_bytes: b'\x01'
         }
         with caplog.at_level(logging.DEBUG):
-            enc.thresholds = thresholds_deg
+            enc.set_thresholds(thresholds_deg)
         assert len(caplog.records) == 1
         assert any('Setting thresholds to' in r.message for r in caplog.records)
         assert enc.thresholds == [enc._tics_to_degrees(x) for x in thresholds_tix]
@@ -224,4 +219,4 @@ class TestRotaryEncoder:
             + ctypes.c_int16(enc._degrees_to_tics(42)): b'\x00'
         }
         with pytest.raises(RuntimeError, match='Failed to set thresholds'):
-            enc.thresholds = [42]
+            enc.set_thresholds([42])

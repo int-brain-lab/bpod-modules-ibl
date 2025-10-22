@@ -56,7 +56,7 @@ class RotaryEncoderModule:
         self._clock_multiplier = 1 if self._hardware_version == 1 else 4
 
         # set encoder resolution
-        self.resolution = encoder_resolution
+        self.set_resolution(encoder_resolution)
 
         # initialize serial object and set port
         # implemented that awkwardly to get logging from self.open()
@@ -76,6 +76,51 @@ class RotaryEncoderModule:
 
     def __del__(self):
         self.close()
+
+    @property
+    def clock_multiplier(self) -> int:
+        """Clock multiplier of the Rotary Encoder Module."""
+        return self._clock_multiplier
+
+    @property
+    def event_transmission(self) -> bool:
+        """The state of event transmission."""
+        return self._event_transmission
+
+    @property
+    def hardware_version(self) -> int:
+        """Hardware version of the Rotary Encoder Module."""
+        return self._hardware_version
+
+    @property
+    def port(self) -> str | None:
+        """Port name of the Rotary Encoder Module."""
+        return self._serial.port
+
+    @property
+    def resolution(self) -> int:
+        """Resolution of the rotary encoder in pulses per revolution."""
+        return self._resolution
+
+    @property
+    def sd_logging(self) -> bool:
+        """The state of SD card logging."""
+        return self._is_sd_logging
+
+    @property
+    def thresholds(self) -> list[float]:
+        """List of thresholds in degrees."""
+        return self._thresholds
+
+    @property
+    def wrap_mode(self) -> Literal['bipolar', 'unipolar']:
+        """The wrap mode of the rotary encoder."""
+        return self._wrap_mode
+
+    @property
+    def wrap_point(self) -> float:
+        """The current wrap point in degrees."""
+        return self._tics_to_degrees(self._wrap_point_tics)
 
     @staticmethod
     @overload
@@ -146,6 +191,29 @@ class RotaryEncoderModule:
                 ) from e
         return hardware_version
 
+    def open(self) -> None:
+        """Open serial connection to the Rotary Encoder Module."""
+        if not self._serial.is_open:
+            log.debug(
+                'Opening serial connection to %s v%d on %s',
+                self._name,
+                self._hardware_version,
+                self.port,
+            )
+            self._serial.open()
+
+    def close(self) -> None:
+        """Close serial connection to the Rotary Encoder Module."""
+        self.set_sd_logging(False)
+        if hasattr(self, '_serial') and self._serial.is_open:
+            log.debug(
+                'Closing serial connection to %s v%d on %s',
+                self._name,
+                self._hardware_version,
+                self.port,
+            )
+            self._serial.close()
+
     def _degrees_to_tics(self, degrees: float) -> int:
         """Convert degrees to tics."""
         return int(round(degrees * self._factor_deg_to_tic))
@@ -160,99 +228,124 @@ class RotaryEncoderModule:
         log.debug('All data streams reset')
 
     def get_tics(self) -> int:
-        """Get current encoder position in tics."""
+        """
+        Get the current encoder position in tics.
+
+        Returns
+        -------
+        int
+            The current encoder position in tics.
+        """
         return cast('int', self._serial.query_struct(b'Q', '<h')[0])
 
     def set_tics(self, tics: int):
-        """Set current encoder position in tics."""
-        if not self._serial.verify(struct.pack('<ch', b'P', tics)):
-            raise RuntimeError(f'Failed to set position to {tics} tics')
+        """
+        Set the current encoder position in tics.
+
+        Parameters
+        ----------
+        tics : int
+            The new encoder position in tics.
+            Value must be an integer between -32768 and 32767.
+
+        Raises
+        ------
+        RuntimeError
+            When setting of the encoder position fails.
+        ValueError
+            When the new encoder position is outside the allowed range.
+        """
+        try:
+            if not self._serial.verify(struct.pack('<ch', b'P', tics)):
+                raise RuntimeError('Failed to set encoder position')
+        except struct.error as e:
+            tics_min = np.iinfo(np.int16).min
+            tics_max = np.iinfo(np.int16).max
+            raise ValueError(
+                f'New encoder position must be between {tics_min} and {tics_max} tics'
+            ) from e
 
     def get_degrees(self) -> float:
-        """Get current encoder position in degrees."""
+        """
+        Get the current encoder position in degrees.
+
+        Returns
+        -------
+        float
+            The current encoder position in degrees.
+        """
         return self._tics_to_degrees(self.get_tics())
 
     def set_degrees(self, degrees: float):
-        """Set current encoder position in degrees."""
+        """
+        Set the current encoder position in degrees.
+
+        Parameters
+        ----------
+        degrees : float
+            The new encoder position in degrees.
+
+        Raises
+        ------
+        RuntimeError
+            When setting of the encoder position fails.
+        ValueError
+            When the new encoder position is outside the allowed range.
+        """
         try:
             tics = self._degrees_to_tics(degrees)
             self.set_tics(tics)
             if log.isEnabledFor(logging.DEBUG):
                 degrees = self._tics_to_degrees(tics)
                 log.debug('Setting encoder position to %0.1f°', degrees)
-        except RuntimeError as e:
-            raise RuntimeError(
-                f'Failed to set encoder position to {degrees:0.1f}'
+        except ValueError as e:
+            degs_min = self._tics_to_degrees(np.iinfo(np.int16).min)
+            degs_max = self._tics_to_degrees(np.iinfo(np.int16).max)
+            raise ValueError(
+                f'New encoder position must be between '
+                f'{degs_min:.1f}° and {degs_max:.1f}°.'
             ) from e
 
     def reset(self):
         """Reset Rotary Encoder Module to default settings."""
-        self.wrap_point = 180.0
-        self.thresholds = [-40.0, 40.0]
-        self.wrap_mode = 'bipolar'
-        self.event_transmission = False
+        self.set_wrap_point(180.0)
+        self.set_thresholds([-40.0, 40.0])
+        self.set_wrap_mode('bipolar')
+        self.set_event_transmission(False)
         # obj.moduleOutputStream = 'off';
         if self._hardware_version == 1:
             self.set_stream_prefix(b'M')
 
-    @property
-    def hardware_version(self) -> int:
-        """Hardware version of the Rotary Encoder Module."""
-        return self._hardware_version
+    def set_resolution(self, value: int) -> None:
+        """
+        Set the encoder resolution in tics per revolution.
 
-    @property
-    def clock_multiplier(self) -> int:
-        """Clock multiplier of the Rotary Encoder Module."""
-        return self._clock_multiplier
+        Parameters
+        ----------
+        value : int
+            The new encoder resolution in tics per revolution.
+            Must be a positive integer.
 
-    @property
-    def resolution(self) -> int:
-        """Resolution of the rotary encoder in pulses per revolution."""
-        return self._resolution
-
-    @resolution.setter
-    def resolution(self, value: int) -> None:
+        Raises
+        ------
+        ValueError
+            If the encoder resolution is not a positive integer.
+        """
         if value <= 0:
             raise ValueError('Encoder resolution must be a positive integer.')
         self._resolution = int(value)
         self._factor_deg_to_tic = self._resolution * self._clock_multiplier / 360.0
         self._factor_tic_to_deg = 1 / self._factor_deg_to_tic
 
-    @property
-    def port(self) -> str | None:
-        """Port name of the Rotary Encoder Module."""
-        return self._serial.port
+    def set_wrap_point(self, degrees: float) -> None:
+        """
+        Set the wrap point in degrees.
 
-    def open(self) -> None:
-        """Open serial connection to the Rotary Encoder Module."""
-        if not self._serial.is_open:
-            log.debug(
-                'Opening serial connection to %s v%d on %s',
-                self._name,
-                self._hardware_version,
-                self.port,
-            )
-            self._serial.open()
-
-    def close(self) -> None:
-        """Close serial connection to the Rotary Encoder Module."""
-        self.sd_logging = False
-        if hasattr(self, '_serial') and self._serial.is_open:
-            log.debug(
-                'Closing serial connection to %s v%d on %s',
-                self._name,
-                self._hardware_version,
-                self.port,
-            )
-            self._serial.close()
-
-    @property
-    def wrap_point(self) -> float:
-        """Get or set the wrap point in degrees."""
-        return self._tics_to_degrees(self._wrap_point_tics)
-
-    @wrap_point.setter
-    def wrap_point(self, degrees: float) -> None:
+        Parameters
+        ----------
+        degrees : float
+            The new wrap point in degrees.
+        """
         tics = self._degrees_to_tics(abs(degrees))
         query = struct.pack('<ch', b'W', tics)
         if self._serial.verify(query):
@@ -262,13 +355,23 @@ class RotaryEncoderModule:
         else:
             raise RuntimeError('Failed to set wrap point')
 
-    @property
-    def thresholds(self) -> list[float]:
-        """List of thresholds in degrees."""
-        return self._thresholds
+    def set_thresholds(self, degrees: list[float]) -> None:
+        """
+        Set the thresholds in degrees.
 
-    @thresholds.setter
-    def thresholds(self, degrees: list[float]) -> None:
+        Parameters
+        ----------
+        degrees : list of float
+            Thresholds in degrees. The list must not contain more than 8 values.
+
+        Raises
+        ------
+        ValueError
+            If any threshold exceeds the current wrap point or the number of thresholds
+            exceeds 8.
+        RuntimeError
+            If setting of the thresholds fails.
+        """
         if any(abs(threshold) > self.wrap_point for threshold in degrees):
             raise ValueError(
                 f'Threshold values cannot exceed the current wrap point of '
@@ -289,13 +392,20 @@ class RotaryEncoderModule:
         else:
             raise RuntimeError('Failed to set thresholds')
 
-    @property
-    def sd_logging(self) -> bool:
-        """The state of SD card logging."""
-        return self._is_sd_logging
+    def set_sd_logging(self, enable_logging: bool) -> None:
+        """
+        Enable or disable SD card logging.
 
-    @sd_logging.setter
-    def sd_logging(self, enable_logging: bool) -> None:
+        Parameters
+        ----------
+        enable_logging : bool
+            Whether to enable SD card logging. True enables logging, False disables it.
+
+        Raises
+        ------
+        RuntimeError
+            If the hardware does not support SD card logging.
+        """
         if enable_logging == self._is_sd_logging:
             return
         if self.hardware_version != 1:
@@ -305,42 +415,16 @@ class RotaryEncoderModule:
             )
         if enable_logging:
             self._serial.write(b'L')
-            log.debug('Logging enabled')
+            log.debug('SD Logging enabled')
         else:
             self._serial.write(b'F')
-            log.debug('Logging disabled')
+            log.debug('SD Logging disabled')
         self._is_sd_logging = bool(enable_logging)
 
     def zero(self) -> None:
         """Reset current encoder position to zero."""
         log.debug('Resetting encoder position to 0°.')
         self._serial.write(b'Z')
-
-    def enable_sd_logging(self):
-        """
-        Enables logging to the SD Card.
-
-        Only supported for hardware version 1.
-
-        Raises
-        ------
-        RuntimeError
-            If the hardware version is not 1.
-        """
-        self.sd_logging = True
-
-    def disable_sd_logging(self):
-        """
-        Disables logging to the SD Card.
-
-        Only supported for hardware version 1.
-
-        Raises
-        ------
-        RuntimeError
-            If the hardware version is not 1.
-        """
-        self.sd_logging = False
 
     def get_logged_data(self) -> NDArray[np.void]:
         """Retrieve logged data from the SD card.
@@ -360,7 +444,7 @@ class RotaryEncoderModule:
                 f'v{self.hardware_version}'
             )
 
-        self.sd_logging = False  # stop logging before retrieving data
+        self.set_sd_logging(False)  # stop logging before retrieving data
 
         # prepare output array
         n_records = self._serial.query_struct(b'R', '<I')[0]
@@ -428,12 +512,7 @@ class RotaryEncoderModule:
         else:
             raise RuntimeError('Failed to set stream prefix')
 
-    @property
-    def wrap_mode(self) -> Literal['bipolar', 'unipolar']:
-        return self._wrap_mode
-
-    @wrap_mode.setter
-    def wrap_mode(self, mode: Literal['bipolar', 'unipolar']):
+    def set_wrap_mode(self, mode: Literal['bipolar', 'unipolar']):
         if mode not in ['bipolar', 'unipolar']:
             raise ValueError(
                 'Invalid wrap mode. Must be either "bipolar" or "unipolar".'
@@ -444,12 +523,7 @@ class RotaryEncoderModule:
         else:
             raise RuntimeError(f'Failed to set wrap mode to {mode}')
 
-    @property
-    def event_transmission(self) -> bool:
-        return self._event_transmission
-
-    @event_transmission.setter
-    def event_transmission(self, value: bool):
+    def set_event_transmission(self, value: bool):
         self._serial.write_struct('<c?', b'V', bool(value))
         if self._serial.verify(b''):
             log.debug('%sabling event transmission', 'En' if value else 'Dis')
