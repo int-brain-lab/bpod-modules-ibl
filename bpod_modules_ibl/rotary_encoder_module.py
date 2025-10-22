@@ -554,7 +554,6 @@ class RotaryEncoderModule:
             If `value` is not a bool, a valid binary string, or a valid sequence of
             integers.
         """
-        byte_value = 0
         if isinstance(value, bool):
             byte_value = 0xFF if value else 0x00
         elif isinstance(value, str):
