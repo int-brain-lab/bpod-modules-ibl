@@ -1,16 +1,38 @@
 import logging
 import struct
+import weakref
 from collections.abc import Sequence
 from typing import Literal, cast, overload
 
 import numpy as np
-from bpod_core.com import ExtendedSerial
+from bpod_core.com import ChunkedSerialReader, ExtendedSerial
 from numpy.typing import NDArray
 from serial import SerialException
+from serial.threaded import ReaderThread
 
 log = logging.getLogger(__name__)
 
 DTYPE_LOGGING = np.dtype([('time', 'timedelta64[us]'), ('degrees', 'f8')])
+
+
+class RotaryEncoderStream(ChunkedSerialReader):
+    def connection_made(self, transport):
+        log.debug('Starting USB streaming thread')
+        super().connection_made(transport)
+
+    def connection_lost(self, exc):
+        log.debug('Stopping USB streaming thread')
+        super().connection_lost(exc)
+
+    def process(self, data: bytes) -> None:
+        match data[0:1]:
+            case b'P':  # position
+                position, time_stamp = struct.unpack('<hI', data[1:])
+                log.debug('%d, %d', time_stamp, position)
+            case b'E':  # event
+                time_stamp, position = struct.unpack('<ih', data[1:])
+            case _:  # unknown
+                log.error('Unknown message type received: %s', data[0:1])
 
 
 class RotaryEncoderModule:
@@ -25,6 +47,7 @@ class RotaryEncoderModule:
     _thresholds: list[float] = []
     _max_thresholds: int = 8
     _event_transmission: bool = False
+    _usb_stream_thread: ReaderThread
 
     def __init__(
         self, port: str, encoder_resolution: int = 1024, reset_to_defaults: bool = True
@@ -69,6 +92,13 @@ class RotaryEncoderModule:
         if reset_to_defaults:
             self.reset()
 
+        # initialize reader thread
+        protocol = RotaryEncoderStream(chunk_size=7)
+        self._usb_stream_thread = ReaderThread(self._serial, protocol)
+
+        # set finalizer
+        self._finalizer = weakref.finalize(self, self.close)
+
     def __enter__(self):
         return self
 
@@ -112,6 +142,13 @@ class RotaryEncoderModule:
     def thresholds(self) -> list[float]:
         """List of thresholds in degrees."""
         return self._thresholds
+
+    @property
+    def is_usb_streaming(self) -> bool:
+        """Whether the USB stream is active or not."""
+        return (
+            hasattr(self, '_usb_stream_thread') and self._usb_stream_thread.is_alive()
+        )
 
     @property
     def wrap_mode(self) -> Literal['bipolar', 'unipolar']:
@@ -207,6 +244,8 @@ class RotaryEncoderModule:
         """Close serial connection to the Rotary Encoder Module."""
         self.set_sd_logging(False)
         if hasattr(self, '_serial') and self._serial.is_open:
+            if self.is_usb_streaming:
+                self.set_usb_stream(False)
             log.debug(
                 'Closing serial connection to %s v%d on %s',
                 self._name,
@@ -591,3 +630,10 @@ class RotaryEncoderModule:
 
     def enable_evt_transmission(self):
         pass
+
+    def set_usb_stream(self, enable: bool) -> None:
+        self._serial.write_struct('<c?', b'S', bool(enable))
+        if enable and not self.is_usb_streaming:
+            self._usb_stream_thread.start()
+        elif not enable and self.is_usb_streaming:
+            self._usb_stream_thread.stop()
