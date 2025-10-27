@@ -9,6 +9,7 @@ from bpod_core.com import ChunkedSerialReader, ExtendedSerial
 from numpy.typing import NDArray
 from serial import SerialException
 from serial.threaded import ReaderThread
+from typing_extensions import Self
 
 log = logging.getLogger(__name__)
 
@@ -16,11 +17,11 @@ DTYPE_LOGGING = np.dtype([('time', 'timedelta64[us]'), ('degrees', 'f8')])
 
 
 class RotaryEncoderStream(ChunkedSerialReader):
-    def connection_made(self, transport):
+    def connection_made(self, transport: ReaderThread[ChunkedSerialReader]):
         log.debug('Starting USB streaming thread')
         super().connection_made(transport)
 
-    def connection_lost(self, exc):
+    def connection_lost(self, exc: BaseException | None):
         log.debug('Stopping USB streaming thread')
         super().connection_lost(exc)
 
