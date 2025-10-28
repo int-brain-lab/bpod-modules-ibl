@@ -220,3 +220,37 @@ class TestRotaryEncoder:
         }
         with pytest.raises(RuntimeError, match='Failed to set thresholds'):
             enc.set_thresholds([42])
+
+    def test_enable_thresholds(self, mock_encoder, mock_ext_serial, caplog):
+        enc = mock_encoder('fake_port', encoder_resolution=1024)
+        enc._wrap_point_tics = enc._degrees_to_tics(180)
+        enc._thresholds = [-40.0, 40.0]
+        mock_ext_serial.mock_responses = {rb'.*': b''}
+        caplog.set_level(logging.DEBUG)
+
+        enc.enable_thresholds(True)
+        assert mock_ext_serial.last_write == struct.pack('<cB', b';', 255)
+        assert 'Enabled all' in caplog.text
+        caplog.clear()
+        enc.enable_thresholds(False)
+        assert mock_ext_serial.last_write == struct.pack('<cB', b';', 0)
+        assert 'Disabled all' in caplog.text
+
+        caplog.clear()
+        enc.enable_thresholds('00001000')
+        assert mock_ext_serial.last_write == struct.pack('<cB', b';', 8)
+        assert 'Enabled threshold 3' in caplog.text
+        with pytest.raises(ValueError):
+            enc.enable_thresholds('12345678')
+        with pytest.raises(ValueError):
+            enc.enable_thresholds('asd')
+
+        caplog.clear()
+        enc.enable_thresholds([0, 2])
+        assert mock_ext_serial.last_write == struct.pack('<cB', b';', 5)
+        assert 'Enabled thresholds 0, 2' in caplog.text
+        with pytest.raises(ValueError):
+            enc.enable_thresholds([9])
+
+        with pytest.raises(ValueError):
+            enc.enable_thresholds({'key': 'value'})

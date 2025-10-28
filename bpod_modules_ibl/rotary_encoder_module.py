@@ -579,7 +579,7 @@ class RotaryEncoderModule:
 
         Parameters
         ----------
-        value : bool or str or Sequence of int
+        value : bool, str or Sequence of int
             - If `bool`: enables all 8 thresholds if True, or disables them if False.
             - If `str`: must be a binary string of exactly 8 characters
               (e.g., '11010100'). Each character represents whether the corresponding
