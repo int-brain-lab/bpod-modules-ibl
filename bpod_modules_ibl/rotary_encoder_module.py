@@ -17,7 +17,7 @@ DTYPE_LOGGING = np.dtype([('time', 'timedelta64[us]'), ('degrees', 'f8')])
 
 
 class RotaryEncoderStream(ChunkedSerialReader):
-    def connection_made(self, transport: ReaderThread[ChunkedSerialReader]):
+    def connection_made(self, transport: 'ReaderThread[Self]'):
         log.debug('Starting USB streaming thread')
         super().connection_made(transport)
 
