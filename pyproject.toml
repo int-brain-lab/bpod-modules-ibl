@@ -9,7 +9,7 @@ description = "A Python library for accessing Bpod modules used at IBL"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "bpod-core>=0.1.0a5",
+    "bpod-core>=0.1.0a6",
     "numpy>=1.26.0",
     "pyserial>=3.5",
 ]

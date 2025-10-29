@@ -1,7 +1,7 @@
 import logging
 import struct
 import weakref
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from typing import Literal, cast, overload
 
 import numpy as np
@@ -9,31 +9,12 @@ from bpod_core.com import ChunkedSerialReader, ExtendedSerial
 from numpy.typing import NDArray
 from serial import SerialException
 from serial.threaded import ReaderThread
-from typing_extensions import Self
 
 log = logging.getLogger(__name__)
 
 DTYPE_LOGGING = np.dtype([('time', 'timedelta64[us]'), ('degrees', 'f8')])
-
-
-class RotaryEncoderStream(ChunkedSerialReader):
-    def connection_made(self, transport: 'ReaderThread[Self]'):
-        log.debug('Starting USB streaming thread')
-        super().connection_made(transport)
-
-    def connection_lost(self, exc: BaseException | None):
-        log.debug('Stopping USB streaming thread')
-        super().connection_lost(exc)
-
-    def process(self, data: bytes) -> None:
-        match data[0:1]:
-            case b'P':  # position
-                position, time_stamp = struct.unpack('<hI', data[1:])
-                log.debug('%d, %d', time_stamp, position)
-            case b'E':  # event
-                time_stamp, position = struct.unpack('<ih', data[1:])
-            case _:  # unknown
-                log.error('Unknown message type received: %s', data[0:1])
+STRUCT_POSITION = struct.Struct('<hI')
+STRUCT_EVENT = struct.Struct('<2BI')
 
 
 class RotaryEncoderModule:
@@ -49,6 +30,8 @@ class RotaryEncoderModule:
     _max_thresholds: int = 8
     _event_transmission: bool = False
     _usb_stream_thread: ReaderThread
+    _callback_position: Callable[[int, float], None] | None = None
+    _callback_event: Callable[[int, int, int], None] | None = None
 
     def __init__(
         self, port: str, encoder_resolution: int = 1024, reset_to_defaults: bool = True
@@ -93,8 +76,8 @@ class RotaryEncoderModule:
         if reset_to_defaults:
             self.reset()
 
-        # initialize reader thread
-        protocol = RotaryEncoderStream(chunk_size=7)
+        # initialize serial reader thread
+        protocol = ChunkedSerialReader(chunk_size=7, callback=self._process_stream)
         self._usb_stream_thread = ReaderThread(self._serial, protocol)
 
         # set finalizer
@@ -254,6 +237,27 @@ class RotaryEncoderModule:
                 self.port,
             )
             self._serial.close()
+
+    def _process_stream(self, data: bytes) -> None:
+        """
+        Process incoming data from the serial reader thread.
+
+        data : bytes
+            Incoming data from the serial reader thread.
+        """
+        match data[:1]:
+            case b'P':  # position
+                tics, microseconds = STRUCT_POSITION.unpack(data[1:])
+                degrees = tics * self._factor_tic_to_deg
+                if self._callback_position:
+                    self._callback_position(microseconds, degrees)
+            case b'E':  # event
+                log.debug(data)
+                event_type, event_code, microseconds = STRUCT_EVENT.unpack(data[1:])
+                if self._callback_event:
+                    self._callback_event(event_type, event_code, microseconds)
+            case _:  # unknown
+                log.error('Unknown message type received: %s', data[0:1])
 
     def _degrees_to_tics(self, degrees: float) -> int:
         """Convert degrees to tics."""
@@ -629,12 +633,19 @@ class RotaryEncoderModule:
                     ', '.join(disabled),
                 )
 
-    def enable_evt_transmission(self):
-        pass
-
     def set_usb_stream(self, enable: bool) -> None:
         self._serial.write_struct('<c?', b'S', bool(enable))
         if enable and not self.is_usb_streaming:
             self._usb_stream_thread.start()
         elif not enable and self.is_usb_streaming:
             self._usb_stream_thread.stop()
+
+    def set_position_callback(
+        self, callback_function: Callable[[int, float], None]
+    ) -> None:
+        self._callback_position = callback_function
+
+    def set_event_callback(
+        self, callback_function: Callable[[int, int, int], None]
+    ) -> None:
+        self._callback_event = callback_function
