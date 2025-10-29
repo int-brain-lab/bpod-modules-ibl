@@ -13,8 +13,8 @@ from serial.threaded import ReaderThread
 log = logging.getLogger(__name__)
 
 DTYPE_LOGGING = np.dtype([('time', 'timedelta64[us]'), ('degrees', 'f8')])
-STRUCT_POSITION = struct.Struct('<hI')
-STRUCT_EVENT = struct.Struct('<2BI')
+STRUCT_POSITION = struct.Struct('<xhI')
+STRUCT_EVENT = struct.Struct('<x2BI')
 
 
 class RotaryEncoderModule:
@@ -247,13 +247,13 @@ class RotaryEncoderModule:
         """
         match data[:1]:
             case b'P':  # position
-                tics, microseconds = STRUCT_POSITION.unpack(data[1:])
+                tics, microseconds = STRUCT_POSITION.unpack(data)
                 degrees = tics * self._factor_tic_to_deg
                 if self._callback_position:
                     self._callback_position(microseconds, degrees)
             case b'E':  # event
                 log.debug(data)
-                event_type, event_code, microseconds = STRUCT_EVENT.unpack(data[1:])
+                event_type, event_code, microseconds = STRUCT_EVENT.unpack(data)
                 if self._callback_event:
                     self._callback_event(event_type, event_code, microseconds)
             case _:  # unknown
