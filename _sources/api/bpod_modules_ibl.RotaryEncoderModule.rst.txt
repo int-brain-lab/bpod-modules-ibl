@@ -1,0 +1,13 @@
+bpod\_modules\_ibl.RotaryEncoderModule
+======================================
+
+.. testsetup::
+
+   from bpod_modules_ibl import RotaryEncoderModule
+
+.. currentmodule:: bpod_modules_ibl
+
+.. autoclass:: RotaryEncoderModule
+   :members:
+   :undoc-members:
+   :show-inheritance:

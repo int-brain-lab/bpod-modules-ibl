@@ -1,0 +1,259 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Developer Guide &mdash; bpod-modules-ibl 0.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="_static/github_style.css?v=1093691d" />
+      <link rel="stylesheet" type="text/css" href="_static/copybutton.css?v=76b2166b" />
+      <link rel="stylesheet" type="text/css" href="_static/sphinx-design.min.css?v=95c83b7e" />
+      <link rel="stylesheet" type="text/css" href="_static/custom.css?v=cee5211e" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=01f34227"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="_static/clipboard.min.js?v=a7894cd8"></script>
+      <script src="_static/copybutton.js?v=f281be69"></script>
+      <script src="_static/design-tabs.js?v=f930bc37"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Changelog" href="changelog.html" />
+    <link rel="prev" title="bpod_modules_ibl.RotaryEncoderModule" href="api/bpod_modules_ibl.RotaryEncoderModule.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            bpod-modules-ibl
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Sections</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="api.html">API Reference</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Developer Guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#versioning-scheme">Versioning Scheme</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#installing-uv">Installing UV</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#installing-developer-dependencies">Installing developer dependencies</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#running-the-unit-tests">Running the unit-tests</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#coverage-report">Coverage report</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#checking-and-formatting-of-code">Checking and formatting of code</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#building-the-documentation">Building the documentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#building-the-package">Building the package</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="changelog.html">Changelog</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Links</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/int-brain-lab/bpod-modules-ibl/">GitHub</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://pypi.org/project/bpod-modules-ibl/">PyPI</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">bpod-modules-ibl</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Developer Guide</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/developer_guide.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="developer-guide">
+<h1>Developer Guide<a class="headerlink" href="#developer-guide" title="Link to this heading"></a></h1>
+<section id="versioning-scheme">
+<h2>Versioning Scheme<a class="headerlink" href="#versioning-scheme" title="Link to this heading"></a></h2>
+<p>bpod-modules-ibl uses <a class="reference external" href="https://semver.org/spec/v2.0.0.html">Semantic Versioning</a>.
+Its version string (currently <code class="docutils literal notranslate"><span class="pre">0.1.0</span></code>) is a combination of three fields, separated by dots:</p>
+<p class="centered">
+<strong><code class="docutils literal notranslate"><span class="pre">MAJOR</span></code> . <code class="docutils literal notranslate"><span class="pre">MINOR</span></code> . <code class="docutils literal notranslate"><span class="pre">PATCH</span></code></strong></p><ul class="simple">
+<li><p>The <code class="docutils literal notranslate"><span class="pre">MAJOR</span></code> field is only incremented for breaking changes, i.e., changes that are not backward compatible with previous changes.</p></li>
+<li><p>The <code class="docutils literal notranslate"><span class="pre">MINOR</span></code> field will be incremented upon adding new, backward compatible features.</p></li>
+<li><p>The <code class="docutils literal notranslate"><span class="pre">PATCH</span></code> field will be incremented with each new, backward compatible bugfix release that does not implement a new feature.</p></li>
+</ul>
+<p>On the developer side, these 3 fields are manually controlled by, both</p>
+<blockquote>
+<div><ol class="arabic">
+<li><p>adjusting the variable <code class="docutils literal notranslate"><span class="pre">__version__</span></code> in <code class="docutils literal notranslate"><span class="pre">bpod-core/__init__.py</span></code>, and</p></li>
+<li><p>adding the corresponding version string to a commit as a <a class="reference external" href="https://git-scm.com/book/en/v2/Git-Basics-Tagging">git tag</a>,
+for instance:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>git<span class="w"> </span>tag<span class="w"> </span><span class="m">1</span>.2.3
+<span class="gp">$ </span>git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span>--tags
+</pre></div>
+</div>
+</li>
+</ol>
+</div></blockquote>
+</section>
+<section id="installing-uv">
+<h2>Installing UV<a class="headerlink" href="#installing-uv" title="Link to this heading"></a></h2>
+<p>This project is utilizing <a class="reference external" href="https://github.com/astral-sh/uv">UV</a> as its package
+manager for managing dependencies and ensuring consistent and reproducible environments.
+To install UV:</p>
+<div class="sd-tab-set docutils">
+<input checked="checked" id="sd-tab-item-0" name="sd-tab-set-0" type="radio">
+<label class="sd-tab-label" for="sd-tab-item-0">
+Linux and macOS</label><div class="sd-tab-content docutils">
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>curl<span class="w"> </span>-LsSf<span class="w"> </span>https://astral.sh/uv/install.sh<span class="w"> </span><span class="p">|</span><span class="w"> </span>sh
+</pre></div>
+</div>
+</div>
+<input id="sd-tab-item-1" name="sd-tab-set-0" type="radio">
+<label class="sd-tab-label" for="sd-tab-item-1">
+Windows</label><div class="sd-tab-content docutils">
+<div class="highlight-pwsh-session notranslate"><div class="highlight"><pre><span></span><span class="gp">PS&gt; </span><span class="n">powershell</span> <span class="n">-ExecutionPolicy</span> <span class="n">ByPass</span> <span class="n">-c</span> <span class="s2">&quot;irm https://astral.sh/uv/install.ps1 | iex&quot;</span>
+</pre></div>
+</div>
+</div>
+</div>
+<p>See <a class="reference external" href="https://docs.astral.sh/uv/">UV’s documentation</a> for details.</p>
+</section>
+<section id="installing-developer-dependencies">
+<h2>Installing developer dependencies<a class="headerlink" href="#installing-developer-dependencies" title="Link to this heading"></a></h2>
+<p>To set up your development environment, you need to install the necessary
+dependencies. The following command will synchronize your environment with the
+dependencies specified in the <code class="docutils literal notranslate"><span class="pre">pyproject.toml</span></code> file, including development
+dependencies and Qt:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>uv<span class="w"> </span>sync
+</pre></div>
+</div>
+</section>
+<section id="running-the-unit-tests">
+<h2>Running the unit-tests<a class="headerlink" href="#running-the-unit-tests" title="Link to this heading"></a></h2>
+<p>We use <a class="reference external" href="https://tox.wiki/">tox</a> to automate our unit-tests. This allows us to
+verify that our code works with various versions of Qt for Python. To run the
+unit tests, execute the following command:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>uv<span class="w"> </span>run<span class="w"> </span>tox<span class="w"> </span>-p
+</pre></div>
+</div>
+<p>Tox will create isolated environments for each specified version of Qt and run
+the tests in those environments. You can find the results of the tests in the
+terminal output, which will indicate whether the tests passed or failed.</p>
+<p>Alternatively, if you want to run unit-tests for your current environment, run</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>uv<span class="w"> </span>run<span class="w"> </span>pytest
+</pre></div>
+</div>
+</section>
+<section id="coverage-report">
+<h2>Coverage report<a class="headerlink" href="#coverage-report" title="Link to this heading"></a></h2>
+<p>After running <code class="docutils literal notranslate"><span class="pre">tox</span></code> or <code class="docutils literal notranslate"><span class="pre">pytest</span></code> (see above), you can generate a coverage report
+to assess how much of the code is covered by the unit tests:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>uv<span class="w"> </span>run<span class="w"> </span>coverage<span class="w"> </span>report
+</pre></div>
+</div>
+<p>If you need a more detailed representation of your code coverage, generate an HTML
+report:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>uv<span class="w"> </span>run<span class="w"> </span>coverage<span class="w"> </span>html
+</pre></div>
+</div>
+<p>You’ll find the HTML report in the folder <code class="docutils literal notranslate"><span class="pre">htmlcov</span></code>, where you can open
+<code class="docutils literal notranslate"><span class="pre">index.html</span></code> in a web browser to view detailed coverage statistics.</p>
+</section>
+<section id="checking-and-formatting-of-code">
+<h2>Checking and formatting of code<a class="headerlink" href="#checking-and-formatting-of-code" title="Link to this heading"></a></h2>
+<p>We use <a class="reference external" href="https://docs.astral.sh/ruff/formatter/">ruff</a> to ensure our code
+adheres to style guidelines and is free of common issues. To format your code
+automatically, run:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>uv<span class="w"> </span>run<span class="w"> </span>ruff<span class="w"> </span>format
+</pre></div>
+</div>
+<p>This command will apply formatting changes to your codebase according to the
+specified style rules. To check your code for issues, use:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>uv<span class="w"> </span>run<span class="w"> </span>ruff<span class="w"> </span>check
+</pre></div>
+</div>
+<p>This command will analyze your code and report any issues it finds. If you want
+ruff to attempt to fix any issues it identifies, you can add the <code class="docutils literal notranslate"><span class="pre">--fix</span></code>
+flag, which will automatically correct fixable problems.</p>
+</section>
+<section id="building-the-documentation">
+<h2>Building the documentation<a class="headerlink" href="#building-the-documentation" title="Link to this heading"></a></h2>
+<p>We use <a class="reference external" href="https://www.sphinx-doc.org/">Sphinx</a> to build our documentation and
+API reference. To build the documentation, run the following command:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>uv<span class="w"> </span>run<span class="w"> </span>sphinx-build<span class="w"> </span>docs/source<span class="w"> </span>docs/build
+</pre></div>
+</div>
+<p>After running this command, you can view the generated documentation in your
+web browser by opening <code class="docutils literal notranslate"><span class="pre">docs/build/index.html</span></code>.</p>
+</section>
+<section id="building-the-package">
+<h2>Building the package<a class="headerlink" href="#building-the-package" title="Link to this heading"></a></h2>
+<p>To build the package, execute the following command:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>uv<span class="w"> </span>build
+</pre></div>
+</div>
+<p>This command will create a distributable package of your project, in the form
+of a source distribution (sdist) and a wheel (bdist_wheel). The generated
+package files will be located in the <code class="docutils literal notranslate"><span class="pre">dist</span></code> directory.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="api/bpod_modules_ibl.RotaryEncoderModule.html" class="btn btn-neutral float-left" title="bpod_modules_ibl.RotaryEncoderModule" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="changelog.html" class="btn btn-neutral float-right" title="Changelog" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, International Brain Laboratory.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
