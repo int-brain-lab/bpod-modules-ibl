@@ -1,0 +1,32 @@
+name: Documentation
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/documentation.yaml'
+      - 'docs/**'
+      - 'bpod_modules_ibl/**'
+
+permissions:
+  contents: write
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - uses: ts-graphviz/setup-graphviz@v2
+      - name: sync dependencies
+        run: uv sync --no-default-groups --group doc
+      - name: build documentation
+        run: uv run sphinx-build docs/source docs/build
+      - uses: peaceiris/actions-gh-pages@v4
+        with:
+          publish_branch: gh-pages
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: docs/build/
+          force_orphan: true
