@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: pypi
-      url: https://pypi.org/p/bpod-core
+      url: https://pypi.org/p/bpod-modules-ibl
     permissions:
       id-token: write
     steps:
