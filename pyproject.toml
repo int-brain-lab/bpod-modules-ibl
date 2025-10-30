@@ -28,7 +28,6 @@ doc = [
   "sphinx-copybutton>=0.5.2",
   "sphinx-rtd-theme>=3.0.2",
   "sphinx>=8.1.3",
-  "sphinx-jsonschema>=1.19.1",
   "sphinx-design>=0.6.1",
   "sphinx-toolbox>=4.0.0",
   "sphinx-github-style>=1.2.2",
