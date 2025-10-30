@@ -46,7 +46,6 @@ extensions = [
     "sphinx_github_style",
     "sphinx_copybutton",
     "sphinx_design",
-    "sphinx-jsonschema",
     "sphinx_toolbox.wikipedia",
     "doctest_codeblock",
 ]

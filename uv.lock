@@ -79,18 +79,6 @@ wheels = [
 ]
 
 [[package]]
-name = "appdirs-stubs"
-version = "0.1.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "appdirs" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/78/1f/09a160274b6224333daf4aeb4968105e4f3c6c63d76947d3a64ee2271abc/appdirs_stubs-0.1.0.tar.gz", hash = "sha256:9694b5cf37430defb9f2732e29358e7c75eddaaa5c721616b50d4c59578bc456", size = 3180, upload-time = "2021-04-13T06:26:46.566Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/15/83/ac72027aaa845955c35df60241089ef7b919f421cb318c9db1cf7578bb5f/appdirs_stubs-0.1.0-py3-none-any.whl", hash = "sha256:444af43d64142107189e883350ce49c29f6cd805706a0e3949aea636862badfc", size = 10984, upload-time = "2021-04-13T06:26:45.339Z" },
-]
-
-[[package]]
 name = "autodocsumm"
 version = "0.2.14"
 source = { registry = "https://pypi.org/simple" }
@@ -149,13 +137,10 @@ wheels = [
 
 [[package]]
 name = "bpod-modules-ibl"
-version = "0.1a0"
+version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "bpod-core" },
-    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
-    { name = "numpy", version = "2.3.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
-    { name = "pyserial" },
 ]
 
 [package.dev-dependencies]
@@ -164,7 +149,6 @@ ci = [
     { name = "pytest-github-actions-annotate-failures" },
 ]
 dev = [
-    { name = "appdirs-stubs" },
     { name = "docutils-stubs" },
     { name = "mypy" },
     { name = "myst-parser" },
@@ -188,7 +172,6 @@ dev = [
     { name = "tox-uv" },
     { name = "types-docutils" },
     { name = "types-pyserial" },
-    { name = "types-pyyaml" },
 ]
 doc = [
     { name = "myst-parser" },
@@ -208,7 +191,6 @@ lint = [
     { name = "ruff" },
 ]
 test = [
-    { name = "appdirs-stubs" },
     { name = "docutils-stubs" },
     { name = "mypy" },
     { name = "packaging" },
@@ -220,23 +202,16 @@ test = [
     { name = "tox-uv" },
     { name = "types-docutils" },
     { name = "types-pyserial" },
-    { name = "types-pyyaml" },
 ]
 typing = [
-    { name = "appdirs-stubs" },
     { name = "docutils-stubs" },
     { name = "mypy" },
     { name = "types-docutils" },
     { name = "types-pyserial" },
-    { name = "types-pyyaml" },
 ]
 
 [package.metadata]
-requires-dist = [
-    { name = "bpod-core", specifier = ">=0.1.0a6" },
-    { name = "numpy", specifier = ">=1.26.0" },
-    { name = "pyserial", specifier = ">=3.5" },
-]
+requires-dist = [{ name = "bpod-core", specifier = ">=0.1.0a6" }]
 
 [package.metadata.requires-dev]
 ci = [
@@ -244,7 +219,6 @@ ci = [
     { name = "pytest-github-actions-annotate-failures", specifier = ">=0.3.0" },
 ]
 dev = [
-    { name = "appdirs-stubs", specifier = ">=0.1.0" },
     { name = "docutils-stubs", specifier = ">=0.0.22" },
     { name = "mypy", specifier = ">=1.15.0" },
     { name = "myst-parser", specifier = ">=4.0.1" },
@@ -266,7 +240,6 @@ dev = [
     { name = "tox-uv", specifier = ">=0.7.2" },
     { name = "types-docutils", specifier = ">=0.22.0.20250822" },
     { name = "types-pyserial", specifier = ">=3.5.0.20250326" },
-    { name = "types-pyyaml", specifier = ">=6.0.12.20250822" },
 ]
 doc = [
     { name = "myst-parser", specifier = ">=4.0.1" },
@@ -281,7 +254,6 @@ doc = [
 ]
 lint = [{ name = "ruff", specifier = ">=0.9.2" }]
 test = [
-    { name = "appdirs-stubs", specifier = ">=0.1.0" },
     { name = "docutils-stubs", specifier = ">=0.0.22" },
     { name = "mypy", specifier = ">=1.15.0" },
     { name = "packaging", specifier = ">=25.0" },
@@ -294,15 +266,12 @@ test = [
     { name = "tox-uv", specifier = ">=0.7.2" },
     { name = "types-docutils", specifier = ">=0.22.0.20250822" },
     { name = "types-pyserial", specifier = ">=3.5.0.20250326" },
-    { name = "types-pyyaml", specifier = ">=6.0.12.20250822" },
 ]
 typing = [
-    { name = "appdirs-stubs", specifier = ">=0.1.0" },
     { name = "docutils-stubs", specifier = ">=0.0.22" },
     { name = "mypy", specifier = ">=1.15.0" },
     { name = "types-docutils", specifier = ">=0.22.0.20250822" },
     { name = "types-pyserial", specifier = ">=3.5.0.20250326" },
-    { name = "types-pyyaml", specifier = ">=6.0.12.20250822" },
 ]
 
 [[package]]
@@ -2227,20 +2196,11 @@ wheels = [
 
 [[package]]
 name = "types-pyserial"
-version = "3.5.0.20250919"
+version = "3.5.0.20251001"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/73/36/e92b4be79fc1d8497acd6ede9c3e2c916265ed4d7f301383ca20d7d73dfd/types_pyserial-3.5.0.20250919.tar.gz", hash = "sha256:ddbe2fc987cd1dd7610ff5a7db2d5907c4b07dbec0fe1eb4b3ae51cdd8ab9b51", size = 19864, upload-time = "2025-09-19T02:54:43.526Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e2/d4/7afd97ee3e2b4cf5c70e559748f3583f646ff3dbc4a65b26fc51d2aff985/types_pyserial-3.5.0.20251001.tar.gz", hash = "sha256:627a1965c4b874f8b5851dc88c60896696dfd1af0491836c77a60a633dca0ad4", size = 19848, upload-time = "2025-10-01T03:04:17.669Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/06/96/28c8874159934e12a563cbec14d065205944667df0339704ef62cb9e9b93/types_pyserial-3.5.0.20250919-py3-none-any.whl", hash = "sha256:a992cfc226dc5b74325f80486eddb64d59bda6c5ecfa4ddfa607552ce90e474f", size = 25345, upload-time = "2025-09-19T02:54:42.763Z" },
-]
-
-[[package]]
-name = "types-pyyaml"
-version = "6.0.12.20250915"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/7e/69/3c51b36d04da19b92f9e815be12753125bd8bc247ba0470a982e6979e71c/types_pyyaml-6.0.12.20250915.tar.gz", hash = "sha256:0f8b54a528c303f0e6f7165687dd33fafa81c807fcac23f632b63aa624ced1d3", size = 17522, upload-time = "2025-09-15T03:01:00.728Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/bd/e0/1eed384f02555dde685fff1a1ac805c1c7dcb6dd019c916fe659b1c1f9ec/types_pyyaml-6.0.12.20250915-py3-none-any.whl", hash = "sha256:e7d4d9e064e89a3b3cae120b4990cd370874d2bf12fa5f46c97018dd5d3c9ab6", size = 20338, upload-time = "2025-09-15T03:00:59.218Z" },
+    { url = "https://files.pythonhosted.org/packages/78/4d/9437e214780de833165f52728709e8a3130015fe536d4fbb3139f7353b3f/types_pyserial-3.5.0.20251001-py3-none-any.whl", hash = "sha256:334f9f1b5c122dcc3ce6a6142e46450cc80b684032d6ad333362077f191dea23", size = 25331, upload-time = "2025-10-01T03:04:16.555Z" },
 ]
 
 [[package]]

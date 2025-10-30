@@ -4,14 +4,12 @@ build-backend = "uv_build"
 
 [project]
 name = "bpod-modules-ibl"
-version = "0.1.a0"
+version = "0.1.0"
 description = "A Python library for accessing Bpod modules used at IBL"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "bpod-core>=0.1.0a6",
-    "numpy>=1.26.0",
-    "pyserial>=3.5",
 ]
 
 [dependency-groups]
@@ -47,12 +45,10 @@ test = [
   "pytest-mock>=3.14.1",
 ]
 typing = [
-  "appdirs-stubs>=0.1.0",
   "docutils-stubs>=0.0.22",
   "mypy>=1.15.0",
   "types-docutils>=0.22.0.20250822",
   "types-pyserial>=3.5.0.20250326",
-  "types-pyyaml>=6.0.12.20250822",
 ]
 ci = [
   "coveralls>=4.0.1",
