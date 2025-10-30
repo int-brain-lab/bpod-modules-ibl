@@ -5,7 +5,7 @@ import struct
 import pytest
 from serial import Serial, SerialException
 
-from bpod_modules_ibl.rotary_encoder_module import RotaryEncoderModule
+from bpod_modules_ibl import RotaryEncoderModule
 
 
 @pytest.fixture(params=[1, 2], ids=lambda v: f'Rotary Encoder v{v}')
