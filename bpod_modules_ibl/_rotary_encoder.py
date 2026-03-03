@@ -6,8 +6,7 @@ from typing import Literal, cast, overload
 
 import numpy as np
 import numpy.typing as npt
-from bpod_core.com import ChunkedSerialReader, ExtendedSerial
-from serial import SerialException
+from bpod_core.com import ChunkedSerialReader, ExtendedSerial, SerialDevice
 from serial.threaded import ReaderThread
 
 log = logging.getLogger(__name__)
@@ -17,22 +16,7 @@ STRUCT_POSITION = struct.Struct('<xhI')
 STRUCT_EVENT = struct.Struct('<x2BI')
 
 
-class RotaryEncoderModule:
-    _name: str = 'Rotary Encoder Module'
-    _is_sd_logging: bool = False
-    _resolution: int = 1024
-    _clock_multiplier: int
-    _factor_tic_to_deg: float
-    _factor_deg_to_tic: float
-    _wrap_mode: Literal['bipolar', 'unipolar'] = 'bipolar'
-    _wrap_point_tics: int
-    _thresholds: list[float] = []
-    _max_thresholds: int = 8
-    _event_transmission: bool = False
-    _usb_stream_thread: ReaderThread
-    _callback_position: Callable[[int, float], None] | None = None
-    _callback_event: Callable[[int, int, int], None] | None = None
-
+class RotaryEncoderModule(SerialDevice):
     def __init__(
         self, port: str, encoder_resolution: int = 1024, reset_to_defaults: bool = True
     ):
@@ -57,20 +41,32 @@ class RotaryEncoderModule:
             If the device on the given port does not appear to be a Rotary
             Encoder Module.
         """
+        super().__init__(port=port, open_connection=False)
+
+        # attributes
+        self._is_sd_logging: bool = False
+        self._resolution: int = 1024
+        self._factor_tic_to_deg: float
+        self._factor_deg_to_tic: float
+        self._wrap_mode: Literal['bipolar', 'unipolar'] = 'bipolar'
+        self._wrap_point_tics: int
+        self._thresholds: list[float] = []
+        self._max_thresholds: int = 8
+        self._event_transmission: bool = False
+        self._usb_stream_thread: ReaderThread
+        self._callback_position: Callable[[int, float], None] | None = None
+        self._callback_event: Callable[[int, int, int], None] | None = None
+
         # handshake / identify hardware version
         self._hardware_version = self.probe(port)
+        self._serial_device_name = 'Rotary Encoder Module'
+        self.open()
 
         # rotary encoder module v1 uses X1 encoding, v2 uses X4 encoding
         self._clock_multiplier = 1 if self._hardware_version == 1 else 4
 
         # set encoder resolution
         self.set_resolution(encoder_resolution)
-
-        # initialize serial object and set port
-        # implemented that awkwardly to get logging from self.open()
-        self._serial = ExtendedSerial()
-        self._serial.port = port
-        self.open()
 
         # reset to default settings
         if reset_to_defaults:
@@ -83,14 +79,9 @@ class RotaryEncoderModule:
         # set finalizer
         self._finalizer = weakref.finalize(self, self.close)
 
-    def __enter__(self):
-        return self
-
     def __exit__(self, exc_type, exc_value, traceback):
-        self.close()
-
-    def __del__(self):
-        self.close()
+        self.set_sd_logging(False)
+        super().__exit__(exc_type, exc_value, traceback)
 
     @property
     def clock_multiplier(self) -> int:
@@ -106,11 +97,6 @@ class RotaryEncoderModule:
     def hardware_version(self) -> int:
         """Hardware version of the Rotary Encoder Module."""
         return self._hardware_version
-
-    @property
-    def port(self) -> str | None:
-        """Port name of the Rotary Encoder Module."""
-        return self._serial.port
 
     @property
     def resolution(self) -> int:
@@ -199,13 +185,6 @@ class RotaryEncoderModule:
                     raise NotImplementedError(
                         f'Unexpected response from device on {port}: {reply!r}'
                     )
-        except SerialException as e:
-            if 'could not open port' in str(e):
-                raise SerialException(
-                    f'Could not connect to device on {port}. Is the device connected?'
-                ) from e
-            else:
-                raise
         except (TimeoutError, NotImplementedError) as e:
             if raise_value_error:
                 raise ValueError(
@@ -213,30 +192,10 @@ class RotaryEncoderModule:
                 ) from e
         return hardware_version
 
-    def open(self) -> None:
-        """Open serial connection to the Rotary Encoder Module."""
-        if not self._serial.is_open:
-            log.debug(
-                'Opening serial connection to %s v%d on %s',
-                self._name,
-                self._hardware_version,
-                self.port,
-            )
-            self._serial.open()
-
     def close(self) -> None:
         """Close serial connection to the Rotary Encoder Module."""
         self.set_sd_logging(False)
-        if hasattr(self, '_serial') and self._serial.is_open:
-            if self.is_usb_streaming:
-                self.set_usb_stream(False)
-            log.debug(
-                'Closing serial connection to %s v%d on %s',
-                self._name,
-                self._hardware_version,
-                self.port,
-            )
-            self._serial.close()
+        super().close()
 
     def _process_stream(self, data: bytes) -> None:
         """
@@ -455,7 +414,7 @@ class RotaryEncoderModule:
             return
         if self.hardware_version != 1:
             raise RuntimeError(
-                f'SD card logging is not supported on {self._name} '
+                f'SD card logging is not supported on {self._serial_device_name} '
                 f'v{self.hardware_version}'
             )
         if enable_logging:
@@ -485,7 +444,7 @@ class RotaryEncoderModule:
         """
         if self.hardware_version != 1:
             raise RuntimeError(
-                f'SD card logging is not supported on {self._name} '
+                f'SD card logging is not supported on {self._serial_device_name} '
                 f'v{self.hardware_version}'
             )
 
@@ -537,7 +496,8 @@ class RotaryEncoderModule:
         # Raise exception if not version 1
         if self.hardware_version != 1:
             raise RuntimeError(
-                f'Setting of stream prefix is only supported for {self._name} v1'
+                f'Setting of stream prefix is only supported for '
+                f'{self._serial_device_name} v1'
             )
 
         # validate prefix and convert to bytes if necessary

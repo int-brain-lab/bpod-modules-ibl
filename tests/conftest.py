@@ -53,6 +53,11 @@ def mock_ext_serial(mocker):
     )
     type(extended_serial).fd = None
 
+    fake_port_info = mocker.MagicMock(device='fake_port')
+    mocker.patch('bpod_core.com.comports', return_value=[fake_port_info])
     mocker.patch('bpod_core.com.ExtendedSerial', return_value=extended_serial)
+    mocker.patch(
+        'bpod_modules_ibl._rotary_encoder.ExtendedSerial', return_value=extended_serial
+    )
 
     return extended_serial
