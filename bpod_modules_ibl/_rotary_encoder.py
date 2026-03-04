@@ -1,6 +1,5 @@
 import logging
 import struct
-import weakref
 from collections.abc import Callable, Sequence
 from typing import Literal, cast, overload
 
@@ -11,9 +10,11 @@ from serial.threaded import ReaderThread
 
 log = logging.getLogger(__name__)
 
-DTYPE_LOGGING = np.dtype([('time', 'timedelta64[us]'), ('degrees', 'f8')])
+DTYPE_LOGGING_IN = np.dtype([('tics', np.int32), ('time', np.uint32)])
+DTYPE_LOGGING_OUT = np.dtype([('time', 'timedelta64[us]'), ('degrees', 'f8')])
 STRUCT_POSITION = struct.Struct('<xhI')
 STRUCT_EVENT = struct.Struct('<x2BI')
+MAX_N_THRESHOLDS = 8
 
 
 class RotaryEncoderModule(SerialDevice):
@@ -43,17 +44,15 @@ class RotaryEncoderModule(SerialDevice):
         """
         super().__init__(port=port, open_connection=False)
 
-        # attributes
-        self._is_sd_logging: bool = False
-        self._resolution: int = 1024
+        # some default attributes
+        self._is_sd_logging = False
+        self._resolution: int
         self._factor_tic_to_deg: float
         self._factor_deg_to_tic: float
         self._wrap_mode: Literal['bipolar', 'unipolar'] = 'bipolar'
         self._wrap_point_tics: int
         self._thresholds: list[float] = []
-        self._max_thresholds: int = 8
         self._event_transmission: bool = False
-        self._usb_stream_thread: ReaderThread
         self._callback_position: Callable[[int, float], None] | None = None
         self._callback_event: Callable[[int, int, int], None] | None = None
 
@@ -75,13 +74,6 @@ class RotaryEncoderModule(SerialDevice):
         # initialize serial reader thread
         protocol = ChunkedSerialReader(chunk_size=7, callback=self._process_stream)
         self._usb_stream_thread = ReaderThread(self._serial, protocol)
-
-        # set finalizer
-        self._finalizer = weakref.finalize(self, self.close)
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        self.set_sd_logging(False)
-        super().__exit__(exc_type, exc_value, traceback)
 
     @property
     def clock_multiplier(self) -> int:
@@ -116,9 +108,7 @@ class RotaryEncoderModule(SerialDevice):
     @property
     def is_usb_streaming(self) -> bool:
         """Whether the USB stream is active or not."""
-        return (
-            hasattr(self, '_usb_stream_thread') and self._usb_stream_thread.is_alive()
-        )
+        return self._usb_stream_thread.is_alive()
 
     @property
     def wrap_mode(self) -> Literal['bipolar', 'unipolar']:
@@ -166,31 +156,37 @@ class RotaryEncoderModule(SerialDevice):
             If the device does not appear to be a Rotary Encoder Module and
             `raise_value_error` is True.
         """
-        hardware_version = None
-        try:
+
+        def _probe() -> int:
             with ExtendedSerial(port, timeout=0.1) as s:
                 s.reset_input_buffer()
                 reply = s.query(b'CI\xfa', 2)
-            if len(reply) == 0:
+            if not reply:
                 raise TimeoutError(
-                    f'Device on {port} did not respond to query within {s.timeout} '
-                    f'seconds.'
+                    f'Device on {port} did not respond to query '
+                    f'within {s.timeout} seconds.'
                 )
             match reply:
                 case b'\xd9\x01':
-                    hardware_version = 1
+                    return 1
                 case b'\xd9\x00':
-                    hardware_version = 2
+                    return 2
                 case _:
                     raise NotImplementedError(
                         f'Unexpected response from device on {port}: {reply!r}'
                     )
+
+        try:
+            return _probe()
         except (TimeoutError, NotImplementedError) as e:
             if raise_value_error:
                 raise ValueError(
                     f'Device on {port} does not appear to be a Rotary Encoder Module.'
                 ) from e
-        return hardware_version
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        self.set_sd_logging(False)
+        super().__exit__(exc_type, exc_val, exc_tb)
 
     def close(self) -> None:
         """Close serial connection to the Rotary Encoder Module."""
@@ -204,23 +200,24 @@ class RotaryEncoderModule(SerialDevice):
         data : bytes
             Incoming data from the serial reader thread.
         """
-        match data[:1]:
-            case b'P':  # position
+        match data[0]:
+            case 0x50:  # b'P' - position
+                if self._callback_position is None:
+                    return
                 tics, microseconds = STRUCT_POSITION.unpack(data)
                 degrees = tics * self._factor_tic_to_deg
-                if self._callback_position:
-                    self._callback_position(microseconds, degrees)
-            case b'E':  # event
-                log.debug(data)
+                self._callback_position(microseconds, degrees)
+            case 0x45:  # b'E' - event
+                if self._callback_event is None:
+                    return
                 event_type, event_code, microseconds = STRUCT_EVENT.unpack(data)
-                if self._callback_event:
-                    self._callback_event(event_type, event_code, microseconds)
+                self._callback_event(event_type, event_code, microseconds)
             case _:  # unknown
                 log.error('Unknown message type received: %s', data[0:1])
 
     def _degrees_to_tics(self, degrees: float) -> int:
         """Convert degrees to tics."""
-        return int(round(degrees * self._factor_deg_to_tic))
+        return round(degrees * self._factor_deg_to_tic)
 
     def _tics_to_degrees(self, tics: int) -> float:
         """Convert tics to degrees."""
@@ -376,23 +373,24 @@ class RotaryEncoderModule(SerialDevice):
         RuntimeError
             If setting of the thresholds fails.
         """
-        if any(abs(threshold) > self.wrap_point for threshold in degrees):
+        wrap_point = self.wrap_point  # avoid unnecessary computation
+        if (n_thresholds := len(degrees)) > MAX_N_THRESHOLDS:
+            raise ValueError(f'A maximum of {MAX_N_THRESHOLDS} thresholds can be set.')
+        if any(abs(threshold) > wrap_point for threshold in degrees):
             raise ValueError(
                 f'Threshold values cannot exceed the current wrap point of '
-                f'{self.wrap_point}°.'
-            )
-        if (n_thresholds := len(degrees)) > 8:
-            raise ValueError(
-                f'A maximum of {self._max_thresholds} thresholds can be set.'
+                f'{wrap_point}°.'
             )
         tics = [self._degrees_to_tics(thresh) for thresh in degrees]
-        degrees = [self._tics_to_degrees(tick) for tick in tics]
+        actual_degrees = [self._tics_to_degrees(tick) for tick in tics]
         query = struct.pack(f'<cB{n_thresholds}h', b'T', n_thresholds, *tics)
         if self._serial.verify(query):
-            self._thresholds = degrees
-            log.debug(
-                'Setting thresholds to %s', ', '.join([f'{x:0.1f}°' for x in degrees])
-            )
+            self._thresholds = actual_degrees
+            if log.isEnabledFor(logging.DEBUG):
+                log.debug(
+                    'Setting thresholds to %s',
+                    ', '.join([f'{x:0.1f}°' for x in actual_degrees]),
+                )
         else:
             raise RuntimeError('Failed to set thresholds')
 
@@ -452,19 +450,19 @@ class RotaryEncoderModule(SerialDevice):
 
         # prepare output array
         n_records = self._serial.query_struct(b'R', '<I')[0]
-        out = np.empty(n_records, dtype=DTYPE_LOGGING)
+        out = np.empty(n_records, dtype=DTYPE_LOGGING_OUT)
         if n_records == 0:
             return out
 
         # retrieve data from rotary encoder module and parse into structured array
         buffer = self._serial.read(n_records * 8)
-        dtype = np.dtype([('tics', np.int32), ('time', np.uint32)])
-        raw_data = np.frombuffer(buffer, dtype=dtype)
+        raw_data = np.frombuffer(buffer, dtype=DTYPE_LOGGING_IN)
         out['time'] = raw_data['time'].astype('timedelta64[us]')
         np.multiply(raw_data['tics'], self._factor_tic_to_deg, out=out['degrees'])
 
         # Correct rollover in 32-bit microsecond timer
-        rollover_indices = np.where(np.diff(raw_data['time']) < 0)[0] + 1
+        time_signed = raw_data['time'].astype(np.int64)
+        rollover_indices = np.where(np.diff(time_signed) < 0)[0] + 1
         if rollover_indices.size:
             for i, start in enumerate(rollover_indices):
                 end = (
@@ -518,20 +516,22 @@ class RotaryEncoderModule(SerialDevice):
             raise RuntimeError('Failed to set stream prefix')
 
     def set_wrap_mode(self, mode: Literal['bipolar', 'unipolar']):
-        if mode not in ['bipolar', 'unipolar']:
+        if mode not in ('unipolar', 'bipolar'):
             raise ValueError(
                 'Invalid wrap mode. Must be either "bipolar" or "unipolar".'
             )
         self._serial.write_struct('<cB', b'M', 0 if mode == 'bipolar' else 1)
         if self._serial.read() == b'\x01':
             log.debug('Setting wrap mode to %s', mode)
+            self._wrap_mode = mode
         else:
             raise RuntimeError(f'Failed to set wrap mode to {mode}')
 
     def set_event_transmission(self, value: bool):
         self._serial.write_struct('<c?', b'V', bool(value))
-        if self._serial.verify(b''):
+        if self._serial.verify():
             log.debug('%sabling event transmission', 'En' if value else 'Dis')
+            self._event_transmission = value
         else:
             raise RuntimeError(
                 f'Failed to {"en" if value else "dis"}able event transmission'
@@ -555,8 +555,10 @@ class RotaryEncoderModule(SerialDevice):
         Raises
         ------
         ValueError
-            If `value` is not a bool, a valid binary string, or a valid sequence of
-            integers.
+            If `value` is a string that is not a valid 8-character binary string, or a
+            sequence containing integers outside the range 0 to 7.
+        TypeError
+            If `value` is not a bool, str, or sequence of int.
         """
         if isinstance(value, bool):
             byte_value = 0xFF if value else 0x00
@@ -565,15 +567,15 @@ class RotaryEncoderModule(SerialDevice):
                 byte_value = int(value, 2)
             else:
                 raise ValueError("String must be 8 characters of '0' or '1'.")
-        elif isinstance(value, Sequence) and not isinstance(value, str):
-            if all(isinstance(x, int) and 0 <= x < 8 for x in value):
-                byte_value = 0
-                for bit in value:
-                    byte_value |= 1 << bit
-            else:
-                raise ValueError('Sequence must contain integers in range 0 to 7.')
+        elif isinstance(value, Sequence):
+            byte_value = 0
+            for x in value:
+                if not (isinstance(x, int) and 0 <= x < 8):
+                    raise ValueError('Sequence must contain integers in range 0 to 7.')
+                byte_value |= 1 << x
+
         else:
-            raise ValueError('Unsupported input type.')
+            raise TypeError('Unsupported input type.')
 
         self._serial.write_struct('<cB', b';', byte_value)
 

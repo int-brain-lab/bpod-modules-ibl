@@ -85,7 +85,7 @@ autodoc_typehints_description_target = "all"  # 'all', 'documented', 'documented
 autodoc_typehints_format = "short"  # 'fully-qualified', 'short'
 
 autosummary_generate = True
-autosummary_imported_members = False
+autosummary_imported_members = True
 
 typehints_defaults = None
 typehints_use_rtype = True
